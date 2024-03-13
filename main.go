@@ -80,26 +80,21 @@ func updateOrder(c *gin.Context) {
     order.CustomerName = newOrder.CustomerName
     order.OrderedAt = newOrder.OrderedAt
 
-    db.Model(&order).Association("Items").Clear()
-
-    var updatedItems []Item
     for _, newItem := range newOrder.Items {
-        item := Item{
-            Code:        newItem.Code,
-            Description: newItem.Description,
-            Quantity:    newItem.Quantity,
-            OrderID:     order.ID,
+        var existingItem Item
+        if err := db.Where("id = ?", newItem.ID).First(&existingItem).Error; err != nil {
+            newItem.OrderID = order.ID
+            db.Create(&newItem)
+        } else {
+            existingItem.Code = newItem.Code
+            existingItem.Description = newItem.Description
+            existingItem.Quantity = newItem.Quantity
+            db.Save(&existingItem)
         }
-        db.Create(&item)
-        updatedItems = append(updatedItems, item)
     }
-
-    order.Items = updatedItems
 
     c.JSON(http.StatusOK, order)
 }
-
-
 
 func deleteOrder(c *gin.Context) {
     id := c.Param("id")
